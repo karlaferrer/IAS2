@@ -279,8 +279,7 @@ ggcoxdiagnostics(pwp_2, type = "deviance",
 )
 
 
-
-# Gráfico dos efeitos  ----------------------------------------------------
+# 8.Gráfico dos efeitos  ----------------------------------------------------
 exp_coef_m7<-exp(pwp_2$coefficients)
 d_forest <- exp(confint(m7))
 d_forest <- round(d_forest[-4,],2)
@@ -294,9 +293,9 @@ dat <- data.frame(
 
 ## Plot forest plot
 ggplot(dat, aes(y = Index, x = HR)) +
-  geom_point(shape = 18, size = 3) +  
+  geom_point(shape = 18, size = 2) +  
   geom_errorbarh(aes(xmin = LL, xmax = UL), height = 0.10) +
-  geom_vline(xintercept = 1, color = "blue", linetype = "dashed", cex = 1, alpha = 0.5) +
+  geom_vline(xintercept = 1, color = "blue", linetype = "dashed", cex = 0.5) +
   scale_y_continuous(name = "", breaks=1:3, labels = dat$label, trans = "reverse") +
   xlab("Razão de riscos (IC 95%)") + 
   ylab(" ") + 
@@ -311,3 +310,19 @@ ggplot(dat, aes(y = Index, x = HR)) +
         axis.title.x = element_text(size = 10, colour = "black"))
 
 
+
+# Modelo exercício 12.5 ---------------------------------------------------
+#Nesse modelos os efeitos aleatorios
+#sao atribuidos às criancas
+#demora alguns minutos
+
+frag_cri <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + 
+                  + frailty(numcri,sparse = F, dist = "gamma")
+                  , data = diar)
+summary(frag_cri)
+
+#tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
+#ao inves de usar a variancia robusta(cluster), usa a fragilidade
+#para tratar as medidas repetidas jogando efeitos aleatorios para cada crianca
+
+#nesse modelo é verificado o efeito protetor da suplementacao com vitamina A
