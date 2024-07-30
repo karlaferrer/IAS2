@@ -122,6 +122,17 @@ diar_w |>
 
 # 4.Efeitos brutos --------------------------------------------------------
 
+#Efeitos brutos sem considerar dados repetidos
+
+fit_sexo <- coxph(Surv(ini, fim, status) ~ sexo, data = diar)
+summary(fit_sexo)
+
+fit_idade <- coxph(Surv(ini, fim, status) ~ idade, data = diar)
+summary(fit_idade)
+
+fit_gravidade <- coxph(Surv(ini, fim, status) ~ gravidade, data = diar)
+summary(fit_gravidade)
+
 # Eventos ordenados - AG - incrementos independentes
 #risco basal igual para qq evento - historico nao importa
 #acrescenta cluster para corrigir variancia - dado correlacionado
