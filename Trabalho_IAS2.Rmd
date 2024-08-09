@@ -1,0 +1,143 @@
+---
+title: "**Análise de sobrevivência avançado**"
+lang: pt
+output:
+  word_document:
+#    reference_docx: "template.docx"
+number_sections: true
+bibliography: 
+- ref/referencias.bib
+- ref/pacotes.bib
+csl: ref/apa.csl
+link-citations: TRUE
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  include = FALSE)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  tidyverse,
+  tableone, #fazer tabela 1
+  gtsummary, # tabelas
+  survival, #analise de sobrevivencia
+  survminer,#graficos ggplot
+  ggplot2,
+  kableExtra,
+  knitr,
+  gt
+  )
+```
+
+```{r includ_biblio, include=FALSE, message=FALSE, warning=FALSE}
+knitr::write_bib(c(.packages(), "survival", "finalfit", "survminer", "ggsurvfit"), "ref/pacotes.bib")
+```
+
+**Métodos**
+
+Os dados analisados neste trabalho são provenientes de um estudo brasileiro publicado na Revista The Lancet em 1994 intitulado "*Effect of vitamin A supplementation on diarrhoea and acute lower-respiratory-tract infections in young children in Brazil*" [@barreto1994]. O objetivo dos autores foi investigar o efeito da suplementação de vitamina A sobre a diarreia e infecções respiratórias agudas do trato inferior, em um ensaio clínico comunitário placebo-controlado com uma coorte de crianças de 6 a 48 meses acompanhadas por um ano [@barreto1994; @carvalho_alise_2011].
+
+Em nosso recorte, os desfechos são episódios de diarreia, sendo o tempo de sobrevivência definido como o tempo decorrido em meses até a ocorrência de um episódio. Dessa forma, a censura é caracterizada por algum epsódio de diarreia. A exposição de interesse é a suplementação de vitamina A e as outras covariáveis são sexo e idade em meses. Além disso, também há informações sobre as características do episódio de diarréia anterior, como duração em dias e média diária de dejeções líquidas ou semi-líquidas, que caracterizam a gravidade dos episódios. Desse modo, a gravidade foi classificada em três categorias de acordo com os critérios adotados pelos autores: leve como episódio de 1 a 2 dias de duração; moderado como episódio de 3 ou mais dias de duração com média diária de 4 ou menos dejeções líquidas ou semi-líquidas; e grave como episódio de 3 ou mais dias de duração com média diária de 5 ou mais dejeções líquidas ou semi-líquidas [@barreto1994].
+
+Inicialmente, foram verificadas as características dos grupos de tratamento (vitamina A e placebo) com a disposição de frequências absolutas e relativas. Ainda em caráter exploratório, foram observadas as curvas de sobrevivência para identificar a possibilidade de riscos basais distintos entre os episódios de diarreia das crianças. Isso resultou na opção pelo modelo de risco proporcionais de Cox para eventos ordenados estruturados para para estimar o efeito da suplementação de vitamina A sobre o risco de episódios de diarreia.
+
+No processo de modelagem, primeiramente, foram obtidas as estimativas dos efeitos brutos de cada covariável sobre o risco de diarreia com modelos de Cox simples e variância robusta, considerando os eventos como ordenados estruturados. Na sequência, no primeiro modelo múltiplo foram incluídas conjuntamente as variáveis sexo e idade e no segundo, o grupo de tratamento. Em seguida, verificou-se a inclusão da gravidade dos episódios de diarréia como efeitos aleatórios do modelo.
+
+A partir do mesmo processo descrito anteriormente, também foi testada outra abordagem para modelos de Cox de eventos múltiplos, considerando um efeito aleatório para cada criança, o que torna a estimativa dos efeitos das covariáveis mais consistentes [@carvalho_alise_2011]. O nível de significância adototado em nosso estudo foi de 5% (p-valor \<0,05).
+
+A qualidade de ajuste para decisão do modelo final foi avaliada segundo a estimativa da probabilidade de concordância forncecida pelo modelo de Cox que é considerada comum em estudos de sobrevivência se o valor estiver entre 0,6 e 0,7 [@carvalho_alise_2011].
+
+Por fim, realizou-se análise gráfica dos resíduos de Schoenfeld para avaliar o pressuposto de proporcionalidde dos riscos de cada covariável do modelo de Cox. A forma funcional da covariável quantitativa foi avaliada segundo gráfico dos resíduos Martingale do modelo nulo versus idade. Por fim, a presença de observações atípicas e influentes foi verificada mediante disposição gráfica dos resíduos *deviance* e escore respectivamente.
+
+Os principais pacotes do software R v.4.4.1 ([http://www.r-project.org](http://www.r-project.org/)) utilizados neste trabalho foram: *survival*[@R-survival], *survminer*[@R-survminer] e *ggsurvfit* [@R-ggsurvfit].
+
+**Resultados**
+
+Tabela 1: Características demográficas das crianças na linha de base e dos episódios de diarreia observados no estudo segundo tratamento.
+
+```{r tabela1, include=TRUE, message=FALSE, warning=FALSE}
+diar <- read.table("data/multdiarreia.txt", header = TRUE)
+
+diar <- diar |>
+  mutate(
+    gravidade = case_when(
+      diasant > 0 & diasant < 3 ~ "leve",
+      diasant >=3 & mediadej <= 4 ~ "moderado",
+      diasant >=3 & mediadej > 4 ~ "grave"
+      )
+  )
+
+#transformar covariaveis em fator
+diar[,c(1:3,12)]<-lapply(diar[,c(1:3,12)],as.factor)
+
+#Transformar o dataset em formato wide
+diar_w <- diar |> 
+  select(numcri, grupo,sexo,idade) |> 
+  unique() |> 
+left_join(
+diar |> group_by(numcri) |> 
+  summarise(max_epi = max(enum)),
+by = "numcri"
+) |> 
+left_join(
+diar |> group_by(numcri) |> 
+  summarise(media_dia = mean(diasant)),
+by = "numcri"
+) |> 
+left_join(
+diar |> group_by(numcri) |> 
+  summarise(media_dej = mean(mediadej)),
+by = "numcri"
+) |> 
+left_join(
+diar |> group_by(numcri) |>
+  filter(gravidade %in% "leve") |> #episodios leves por crianca
+  summarise(leve = n()),
+by = "numcri"
+) |> 
+left_join(
+diar |> group_by(numcri) |>
+  filter(gravidade %in% "moderado") |> #episodios moderados por crianca
+  summarise(moderado = n()),
+by = "numcri"
+) |> 
+  left_join(
+diar |> group_by(numcri) |>
+  filter(gravidade %in% "grave") |> #episodios graves por crianca
+  summarise(grave = n()),
+by = "numcri"
+  )
+
+#com gtsummary
+tabela1 <- diar_w |>
+  select(!numcri) |> 
+  tbl_summary(by = grupo, 
+              label = list(sexo ~ "Sexo", idade ~ "Idade (meses)",
+                          max_epi ~ "Número de episódios",
+                          media_dia ~ "Duração dos episódios (dias)",
+                          media_dej ~ "Dejeções líquidas diárias",
+                          leve ~ "Episódios leves",
+                          moderado ~ "Episódios moderados",
+                          grave ~ "Episódios graves"),
+              missing = "no", digits = list(all_continuous() ~ c(0, 1),
+                                            all_categorical() ~ c(0, 1))) |> 
+  #add_p() |> 
+  modify_header(label ~ "**Variável**") |> 
+  modify_spanning_header(c("stat_1", "stat_2") ~ "**Tratamento Recebido**") |> 
+  add_overall(col_label = "**Total**") |> 
+  modify_footnote(
+    all_stat_cols() ~ "Frequência (%) ou Mediana (IIQ)")
+
+
+tabela1 
+```
+
+```{r Figura_1, include=TRUE, fig.align='center', out.width="70%",fig.cap="Figura1: Curvas de sobrevivência para o risco de diarréia segundo os nove primeiros episódios."}
+
+knitr::include_graphics("figure/sob_episodios.jpg", dpi = 300)
+```
+
+**Referências**

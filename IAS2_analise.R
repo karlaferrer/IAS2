@@ -30,7 +30,7 @@ diar <- diar |>
     gravidade = case_when(
       diasant > 0 & diasant < 3 ~ "leve",
       diasant >=3 & mediadej <= 4 ~ "moderado",
-      diasant >=3 & mediadej > 4 ~ "grave",
+      diasant >=3 & mediadej > 4 ~ "grave"
       )
   )
 
@@ -120,7 +120,22 @@ diar_w |>
   
 #grupos balanceados, ensaio clínico comunitário
 
-# 4.Efeitos brutos --------------------------------------------------------
+
+# 4. Gráfico de sobrevivência por ordem de episódio -----------------------
+# Checar se os eventos possuem riscos basais distintos 
+#para optar por pwp ou ag
+
+jpeg(file="figure/sob_episodios.jpg", width = 10, height = 15, units = "cm", pointsize = 12,
+     res = 600, quality = 85)
+plot(survfit(Surv(tempo, status) ~ enum, data = diar, 
+     subset = (enum < 10)), col = 1:9, lty = 1:9,mark.time = F,
+     xlab = "n. de dias desde o último evento", ylab = "S(t)")
+legend("topright",col = 1:9, lty = 1:9,
+       legend=c("ep.1", "ep.2", "ep.3", "ep.4", "ep.5", "ep.6", "ep.7",
+                "ep.8", "ep.9"), box.lty=0, )
+dev.off()
+
+# 5.Efeitos brutos --------------------------------------------------------
 
 #Efeitos brutos sem considerar dados repetidos
 
@@ -180,7 +195,7 @@ summary(pwp_idade)
 #cada mes adicional diminui o risco em 1.6%
 
 
-# 5.Efeito do tratamento ajustado -----------------------------------------
+# 6.Efeito do tratamento ajustado -----------------------------------------
 
 #Modelo 1: idade e sexo
 #de importancia teorica sao ajustadas conjuntamente
@@ -199,12 +214,12 @@ summary(pwp_2)
 #por causa da variancia robusta
 
 
-# 6.Fragilidade -----------------------------------------------------------
+# 7.Fragilidade -----------------------------------------------------------
 #considerar como fragilidade a media e dejecoes liquidas do episodio anterior
 
 #efeito aleatorio gamma
 pwp_3 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + 
-                 cluster(numcri) + strata(enum) + frailty(gravidade, sparse = F)
+                 cluster(numcri) + strata(enum) + frailty(gravidade, sparse = T)
                ,data = diar)
 summary(pwp_3)
 
@@ -220,7 +235,7 @@ summary(pwp_4)
 #Plot das fragilidades estimadas
 #Necessita do sparse = T, que nao esta funcionando
 
-# 7.Análise de resíduos ---------------------------------------------------
+# 8.Análise de resíduos ---------------------------------------------------
 
 #Proporcionalidade - Shoenfeld
 
@@ -290,7 +305,7 @@ ggcoxdiagnostics(pwp_2, type = "deviance",
 )
 
 
-# 8.Gráfico dos efeitos  ----------------------------------------------------
+# 9.Gráfico dos efeitos  ----------------------------------------------------
 exp_coef_m7<-exp(pwp_2$coefficients)
 d_forest <- exp(confint(m7))
 d_forest <- round(d_forest[-4,],2)
@@ -322,13 +337,13 @@ ggplot(dat, aes(y = Index, x = HR)) +
 
 
 
-# Modelo exercício 12.5 ---------------------------------------------------
+# 10. Modelo exercício 12.5 ---------------------------------------------------
 #Nesse modelos os efeitos aleatorios
 #sao atribuidos às criancas
 #demora alguns minutos
 
-frag_cri <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + 
-                  + frailty(numcri,sparse = F, dist = "gamma")
+frag_cri <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + gravidade
+                  + frailty(numcri,sparse = T, dist = "gamma")
                   , data = diar)
 summary(frag_cri)
 
