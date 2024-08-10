@@ -135,44 +135,10 @@ legend("topright",col = 1:9, lty = 1:9,
                 "ep.8", "ep.9"), box.lty=0, )
 dev.off()
 
-# 5.Efeitos brutos --------------------------------------------------------
+#Verifica-se risco basal distinto dos episodios
+#opcao pelo modelo de eventos estrutrados ordenados pwp
 
-#Efeitos brutos sem considerar dados repetidos
-
-fit_sexo <- coxph(Surv(ini, fim, status) ~ sexo, data = diar)
-summary(fit_sexo)
-
-fit_idade <- coxph(Surv(ini, fim, status) ~ idade, data = diar)
-summary(fit_idade)
-
-fit_gravidade <- coxph(Surv(ini, fim, status) ~ gravidade, data = diar)
-summary(fit_gravidade)
-
-# Eventos ordenados - AG - incrementos independentes
-#risco basal igual para qq evento - historico nao importa
-#acrescenta cluster para corrigir variancia - dado correlacionado
-
-#Efeito bruto - sexo
-ag_sexo <- coxph(Surv(ini, fim, status) ~ sexo + cluster(numcri),data = diar)
-summary(ag_sexo)
-# de acordo com AG nao ha diferenca entre os sexos
-#robust se = 2.37*se(coef)
-#indica que o risco de novos episodios e correlacionado a episodios anteriores
-#o modelo AG nao e indicado,testar PWP e fragilidade
-
-#Efeito bruto - tratamento
-ag_grupo <- coxph(Surv(ini, fim, status) ~ grupo + cluster(numcri),data = diar)
-summary(ag_grupo)
-# segundo AG nao ha diferenca entre os tratamentos
-#robust se > 2*se(coef)
-#o modelo AG nao e indicado,testar PWP e fragilidade
-
-#Efeito bruto - idade
-ag_idade <- coxph(Surv(ini, fim, status) ~ idade + cluster(numcri),data = diar)
-summary(ag_idade)
-#cada mes acrescido na idade da crianca, diminui o risco em 3,3%
-#robust se > 2*se(coef)
-#o modelo AG nao e indicado,testar PWP e fragilidade
+# 5.Efeitos brutos - PWP --------------------------------------------------------
 
 #Eventos ordenados estruturados - PWP
 
@@ -181,59 +147,129 @@ pwp_sexo <- coxph(Surv(ini, fim, status) ~ sexo + cluster(numcri) + strata(enum)
                   ,data = diar)
 summary(pwp_sexo)
 #nao ha diferenca entre os sexos
-
-a#Efeito bruto tratamento
-pwp_grupo <- coxph(Surv(ini, fim, status) ~ grupo + cluster(numcri) + strata(enum)
-                  ,data = diar)
-summary(pwp_grupo)
-#nao ha diferenca entre os grupos
+#Concordance= 0.5 
 
 #Efeito bruto idade
 pwp_idade <- coxph(Surv(ini, fim, status) ~ idade + cluster(numcri) + strata(enum)
                    ,data = diar)
 summary(pwp_idade)
 #cada mes adicional diminui o risco em 1.6%
+#Concordance= 0.586
+
+#Efeito bruto tratamento
+pwp_grupo <- coxph(Surv(ini, fim, status) ~ grupo + cluster(numcri) + strata(enum)
+                  ,data = diar)
+summary(pwp_grupo)
+#nao ha diferenca entre os grupos
+#Concordance= 0.516
 
 
-# 6.Efeito do tratamento ajustado -----------------------------------------
+# 6.Efeito do tratamento ajustado PWP -----------------------------------------
 
 #Modelo 1: idade e sexo
-#de importancia teorica sao ajustadas conjuntamente
-pwp_1 <- coxph(Surv(ini, fim, status) ~ idade + sexo + cluster(numcri) + strata(enum)
+
+#incluindo idade sobre o modelo pwp_sexo 
+pwp_1 <- coxph(Surv(ini, fim, status) ~ sexo + idade + cluster(numcri) + strata(enum)
                ,data = diar)
 summary(pwp_1)
+#Concordance= 0.585
 
 #Modelo 2: acrescenta o tratamento
 pwp_2 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + cluster(numcri) + strata(enum)
                ,data = diar)
 summary(pwp_2)
 #tratamento nao tem efeito significativo ajustado por idade e sexo
+#Concordance= 0.586 
 
 # nao e possivel comparar os modelos com
 # teste da razao de verossimilhanca (anova)
 #por causa da variancia robusta
 
+#Incluir uma fragilidade com a gravidade dos episodios
+#considerar como fragilidade a gravidade do episodio anterior
+#gravidade 2 sem NAs para modelagem
 
-# 7.Fragilidade -----------------------------------------------------------
-#considerar como fragilidade a media e dejecoes liquidas do episodio anterior
+diar <- diar |>
+  mutate(
+    grav2 = case_when(
+      diasant > 0 & diasant < 3 ~ "leve",
+      diasant >=3 & mediadej <= 4 ~ "moderado",
+      diasant >=3 & mediadej > 4 ~ "grave",
+      status == 0 ~ "sem evento",
+      diasant == 0 & mediadej == 0 ~ "primeiro ep"
+    )
+  )
+
+#Total por categoria
+diar |> 
+  count(grav2)
 
 #efeito aleatorio gamma
 pwp_3 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + 
-                 cluster(numcri) + strata(enum) + frailty(gravidade, sparse = T)
+                 cluster(numcri) + strata(enum) + frailty(grav2, sparse = F)
                ,data = diar)
 summary(pwp_3)
+#Concordance= 0.627
 
 #efeito aleatorio lognormal
 pwp_4 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + 
                  cluster(numcri) + strata(enum) + 
-                 frailty(gravidade, sparse = F, dist = "gauss"),x = TRUE,
+                 frailty(grav2, sparse = F, dist = "gauss"),x = TRUE,
                ,data = diar)
 summary(pwp_4)
 
 #a variancia do efeito alatorio é pequena, mas significativa a 5%
+#Concordance= 0.627
 
 #Plot das fragilidades estimadas
 #Necessita do sparse = T, que nao esta funcionando
+
+
+# 7.Eventos múltiplos com fragilidade ---------------------------------------
+
+#Efeitos brutos
+#Sexo
+frag_sexo <- coxph(Surv(ini, fim, status) ~ sexo + frailty(numcri,sparse = F, 
+                  dist = "gamma"), data = diar)
+summary(frag_sexo)
+
+#Idade
+frag_idade <- coxph(Surv(ini, fim, status) ~ idade + frailty(numcri,sparse = F, 
+                                                           dist = "gamma"), data = diar)
+summary(frag_idade)
+
+#Tratamento
+frag_grupo <- coxph(Surv(ini, fim, status) ~ grupo + frailty(numcri,sparse = F, 
+                                                             dist = "gamma"), data = diar)
+summary(frag_grupo)
+
+#Modelos múltiplos
+#Sexo + idade
+frag_1 <- coxph(Surv(ini, fim, status) ~ sexo + idade
+                  + frailty(numcri,sparse = T, dist = "gamma")
+                  , data = diar)
+summary(frag_1)
+
+
+#Sexo + idade + grupo
+frag_2 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo
+                + frailty(numcri,sparse = T, dist = "gamma")
+                , data = diar)
+summary(frag_2)
+#Concordance= 0.769
+
+#sexo + idade + grupo + gravidade
+frag_3 <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + grav2
+                + frailty(numcri,sparse = T, dist = "gamma")
+                , data = diar)
+summary(frag_3)
+
+#tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
+#ao inves de usar a variancia robusta(cluster), usa a fragilidade
+#para tratar as medidas repetidas jogando efeitos aleatorios para cada crianca
+
+#nesse modelo é verificado o efeito protetor da suplementacao com vitamina A
+
 
 # 8.Análise de resíduos ---------------------------------------------------
 
@@ -249,7 +285,7 @@ summary(pwp_4)
 #com relacao a gravidade - tabela 1
 
 
-res.sho <- cox.zph(pwp_2)
+res.sho <- cox.zph(frag_2)
 
 covar <- c("Beta (t) para Idade","Beta (t) para Sexo",
            "Beta (t) para Tratamento")
@@ -286,17 +322,19 @@ ggcoxfunctional(Surv(ini, fim, status) ~ idade, data = diar,
                 xlab = "Idade (meses)", 
                 ylim=c(-5,1)
 )
+# a forma funcional esta adequada
+
 
 # Observacoes Atípicas - Residuos deviance
-res.dev <-resid(pwp_2, type = "deviance")
+res.dev <-resid(frag_2, type = "deviance")
 plot(res.dev, col= "grey", ylab = "Resíduos deviance", xlab = "Índice")
 abline(h=0, col="red")
 
-#Proporcao de observacoes atipicas - 9.3%
+#Proporcao de observacoes atipicas - 10%
 (sum(res.dev  > 2) + sum(res.dev  < (-2)))/length(diar$numcri)
 
 #outra forma
-ggcoxdiagnostics(pwp_2, type = "deviance",
+ggcoxdiagnostics(frag_2, type = "deviance",
                  linear.predictions = FALSE, sline = FALSE, 
                  ggtheme = theme_minimal(),
                  ylab = "Resíduos deviance",
@@ -305,16 +343,18 @@ ggcoxdiagnostics(pwp_2, type = "deviance",
 )
 
 
-# 9.Gráfico dos efeitos  ----------------------------------------------------
-exp_coef_m7<-exp(pwp_2$coefficients)
-d_forest <- exp(confint(m7))
+# 9.Gráfico dos efeitos fixos e aleatorios  ----------------------------------------------------
+
+#Efeitos fixos do modelo
+exp_coef<-exp(frag_2$coefficients)
+d_forest <- exp(confint(frag_2))
 d_forest <- round(d_forest[-4,],2)
 dat <- data.frame(
   Index = c(1:3), ## This provides an order to the data
-  label = c("Idade", "Sexo (M)", "Vitamina A"),
-  HR = exp(pwp_2$coefficients),
-  LL = exp(confint(pwp_2))[,1],
-  UL = exp(confint(pwp_2))[,2]
+  label = c("Sexo (M)","Idade", "Vitamina A"),
+  HR = exp(frag_2$coefficients),
+  LL = exp(confint(frag_2))[,1],
+  UL = exp(confint(frag_2))[,2]
 )
 
 ## Plot forest plot
@@ -336,19 +376,8 @@ ggplot(dat, aes(y = Index, x = HR)) +
         axis.title.x = element_text(size = 10, colour = "black"))
 
 
-
-# 10. Modelo exercício 12.5 ---------------------------------------------------
-#Nesse modelos os efeitos aleatorios
-#sao atribuidos às criancas
-#demora alguns minutos
-
-frag_cri <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + gravidade
-                  + frailty(numcri,sparse = T, dist = "gamma")
-                  , data = diar)
-summary(frag_cri)
-
-#tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
-#ao inves de usar a variancia robusta(cluster), usa a fragilidade
-#para tratar as medidas repetidas jogando efeitos aleatorios para cada crianca
-
-#nesse modelo é verificado o efeito protetor da suplementacao com vitamina A
+#Grafico dos efeitos aleatorios
+source("Rfun.r")
+# Para o gráfico o modelo precisa ter sido gerado com sparse=T (pg. 385)
+plot.frail(diar$numcri,frag_2)
+title("Fragilidades Estimadas - Gama")
