@@ -163,6 +163,18 @@ summary(pwp_grupo)
 #nao ha diferenca entre os grupos
 #Concordance= 0.516
 
+#Tabela efeitos brutos pwp
+bruto_pwp <- rbind(
+  cbind(exp(pwp_sexo$coefficients),exp(confint(pwp_sexo)), pwp_sexo$concordance[6]),
+  cbind(exp(pwp_idade$coefficients),exp(confint(pwp_idade)), pwp_idade$concordance[6]),
+  cbind(exp(pwp_grupo$coefficients),exp(confint(pwp_grupo)), pwp_grupo$concordance[6])
+)
+bruto_pwp <- as.data.frame(bruto_pwp)
+bruto_pwp <- round(bruto_pwp,2)
+bruto_pwp <- cbind(c("Sexo (masculino)", "Idade", 
+                     "Tratamento (Vit.A)"), bruto_pwp)
+names(bruto_pwp) <- c("Variável","RR", "LI", "LS", "Concordância")
+
 
 # 6.Efeito do tratamento ajustado PWP -----------------------------------------
 
@@ -224,6 +236,40 @@ summary(pwp_4)
 #Plot das fragilidades estimadas
 #Necessita do sparse = T, que nao esta funcionando
 
+#Tabela comparando modelos
+
+res_pwp_sexo <- cbind("Modelo 0 PWP",
+  "Sexo (masculino)",exp(pwp_sexo$coefficients),
+                      exp(confint(pwp_sexo)), pwp_sexo$concordance[6])
+
+res_pwp_1 <- cbind("Modelo 1 PWP",
+  c("Sexo (masculino)","Idade"),exp(pwp_1$coefficients),
+                   exp(confint(pwp_1)), pwp_1$concordance[6])
+
+res_pwp_2 <- cbind("Modelo 2 PWP",
+  c("Sexo (masculino)","Idade", "Tratamento (Vit. A)"),
+                   exp(pwp_2$coefficients),exp(confint(pwp_2)), pwp_2$concordance[6])
+  
+
+res_pwp_3 <-cbind("Modelo 3 PWP + Fragilidade - Gama",
+  c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
+                    "Primeiro episódio", "Sem evento"),
+                  exp(pwp_3$coefficients),exp(confint(pwp_3)), pwp_3$concordance[6])
+
+res_pwp_4 <-cbind("Modelo 4 PWP + Fragilidade - Gauss",
+  c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
+                    "Primeiro episódio", "Sem evento"),
+                  exp(pwp_4$coefficients),exp(confint(pwp_4)), pwp_4$concordance[6])
+
+mult_pwp<- rbind(res_pwp_sexo,res_pwp_1, res_pwp_2, res_pwp_3,res_pwp_4)
+
+mult_pwp <- as.data.frame(mult_pwp)
+mult_pwp[,3:6]<-lapply(mult_pwp[,3:6],as.numeric)
+mult_pwp[,3:6]<-round (mult_pwp[,3:6],2)
+
+names(mult_pwp) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
+
+
 
 # 7.Eventos múltiplos com fragilidade ---------------------------------------
 
@@ -242,6 +288,22 @@ summary(frag_idade)
 frag_grupo <- coxph(Surv(ini, fim, status) ~ grupo + frailty(numcri,sparse = F, 
                                                              dist = "gamma"), data = diar)
 summary(frag_grupo)
+
+#Tabela efeitos brutos - fragilidade para cada crianca
+bruto_frag <- rbind(
+  cbind(exp(frag_sexo$coefficients),exp(confint(frag_sexo)), frag_sexo$concordance[6]),
+  cbind(exp(frag_idade$coefficients),exp(confint(frag_idade)), frag_idade$concordance[6]),
+  cbind(exp(frag_grupo$coefficients),exp(confint(frag_grupo)), frag_grupo$concordance[6])
+)
+bruto_frag <- as.data.frame(bruto_pwp)
+bruto_frag <- round(bruto_pwp,2)
+bruto_frag <- cbind(c("Sexo (masculino)", "Idade", 
+                     "Tratamento (Vit.A)"), frag_pwp)
+names(bruto_frag) <- c("Variável","RR", "LI", "LS", "Concordância")
+
+
+
+
 
 #Modelos múltiplos
 #Sexo + idade
@@ -377,7 +439,66 @@ ggplot(dat, aes(y = Index, x = HR)) +
 
 
 #Grafico dos efeitos aleatorios
-source("Rfun.r")
+#source("Rfun.r")
 # Para o gráfico o modelo precisa ter sido gerado com sparse=T (pg. 385)
+#Funcao que gera o grafico modificada:
+plot.frail<-function(unidade,model,...){
+  if (!is.null(model$frail)){
+    fragil <- data.frame(unidade=unique(unidade),fragil=model$frail,inf=(model$frail - 1.96*sqrt(model$fvar)),sup=(model$frail + 1.96*sqrt(model$fvar)))
+    ordenado <- fragil[order(fragil[,2]),]                     
+    x<-matrix(1:nrow(fragil),ncol=nrow(fragil),nrow=2,byrow=T) 
+    y<-t(ordenado[,3:4])                                       
+    matplot(x,y,type='l',col=1,lty=1,axes=F,...)               
+    box();axis(2); axis(1,at=x[1,],labels=ordenado$unidade,las=2)
+    matpoints(x[1,],y[1,],pch=24,col=1)                        
+    matpoints(x[2,],y[2,],pch=25,col=1)                        
+    points(1:ncol(x),ordenado[,2],pch=19, cex=0.1)                      
+    abline(h=0)
+  }
+  else{
+    warning("Esta funcao somente implementada para sparse=TRUE")
+  }
+  
+}
+
 plot.frail(diar$numcri,frag_2)
 title("Fragilidades Estimadas - Gama")
+
+# igual no Rfun
+fragil <- data.frame(unidade=unique(diar$numcri),fragil=frag_2$frail,inf=(frag_2$frail - 1.96*sqrt(frag_2$fvar)),sup=(frag_2$frail + 1.96*sqrt(frag_2$fvar)))
+ordenado <- fragil[order(fragil[,2]),]                     
+x<-matrix(1:nrow(fragil),ncol=nrow(fragil),nrow=2,byrow=T) 
+y<-t(ordenado[,3:4])   
+matplot(x,y,type='l',col=1,lty=1,axes=F)               
+box();axis(2); axis(1,at=x[1,],labels=ordenado$unidade,las=2)
+matpoints(x[1,],y[1,],pch=24,col=1)                        
+matpoints(x[2,],y[2,],pch=25,col=1)                        
+points(1:ncol(x),ordenado[,2],pch=19, cex=0.1)                      
+abline(h=0)
+
+
+grupos <- as.factor(rep(1:10, each = 86))
+ordenado <- cbind(ordenado, grupos)
+index <- 1:length(ordenado$unidade)
+ordenado <- cbind(ordenado, index)
+
+#com ggplot dem 10 grupos para poder visualizar cada criança
+ggplot(ordenado[1:10,], aes(y = index, x = fragil)) +
+  geom_point(shape = 18, size = 1.0) +  
+  geom_errorbarh(aes(xmin = inf, xmax = sup), height = 0.08) +
+  geom_vline(xintercept = 0, color = "blue", linetype = "dashed", cex = 0.5) +
+  scale_y_continuous(name = " ", breaks=1:10, labels = ordenado$unidade[1:10]) +
+  xlab("Fraglidade") + 
+  #ylab("Criança") + 
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size = 4, colour = "black"),
+        axis.text.x.bottom = element_text(size = 8, colour = "black"),
+        axis.title.x = element_text(size = 8, colour = "black"),
+        axis.title.y = element_text(size = 8, colour = "black"))
+
+
