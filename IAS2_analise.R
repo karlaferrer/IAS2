@@ -10,7 +10,8 @@ pacman::p_load(
   gtsummary, # tabelas
   survival, #analise de sobrevivencia
   survminer,#graficos ggplot
-  ggplot2
+  ggplot2,
+  gridExtra #arrange plots
   )
 
 # 2.Leitura e organização BD ------------------------------------------------
@@ -135,6 +136,13 @@ legend("topright",col = 1:9, lty = 1:9,
                 "ep.8", "ep.9"), box.lty=0, )
 dev.off()
 
+#com ggplot
+ggsurvplot(survfit(Surv(tempo, status) ~ enum, data = diar, 
+         subset = (enum < 10)), palette = "lancet", lty = 0.2, linetype = "solid") +
+  ylab("S(t)")+
+  xlab("dias desde o último evento")
+
+
 #Verifica-se risco basal distinto dos episodios
 #opcao pelo modelo de eventos estrutrados ordenados pwp
 
@@ -238,42 +246,39 @@ summary(pwp_4)
 
 #Tabela comparando modelos
 
-res_pwp_sexo <- cbind("Modelo 0 PWP",
-  "Sexo (masculino)",exp(pwp_sexo$coefficients),
-                      exp(confint(pwp_sexo)), pwp_sexo$concordance[6])
-
-res_pwp_1 <- cbind("Modelo 1 PWP",
+res_pwp_1 <- cbind("Modelo 1",
   c("Sexo (masculino)","Idade"),exp(pwp_1$coefficients),
                    exp(confint(pwp_1)), pwp_1$concordance[6])
 
-res_pwp_2 <- cbind("Modelo 2 PWP",
+res_pwp_2 <- cbind("Modelo 2",
   c("Sexo (masculino)","Idade", "Tratamento (Vit. A)"),
                    exp(pwp_2$coefficients),exp(confint(pwp_2)), pwp_2$concordance[6])
   
 
-res_pwp_3 <-cbind("Modelo 3 PWP + Fragilidade - Gama",
+res_pwp_3 <-cbind("Modelo 3",
   c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
                     "Primeiro episódio", "Sem evento"),
                   exp(pwp_3$coefficients),exp(confint(pwp_3)), pwp_3$concordance[6])
 
-res_pwp_4 <-cbind("Modelo 4 PWP + Fragilidade - Gauss",
+res_pwp_4 <-cbind("Modelo 4",
   c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
                     "Primeiro episódio", "Sem evento"),
                   exp(pwp_4$coefficients),exp(confint(pwp_4)), pwp_4$concordance[6])
 
-mult_pwp<- rbind(res_pwp_sexo,res_pwp_1, res_pwp_2, res_pwp_3,res_pwp_4)
+mult_pwp<- rbind(res_pwp_1, res_pwp_2, res_pwp_3,res_pwp_4)
 
 mult_pwp <- as.data.frame(mult_pwp)
 mult_pwp[,3:6]<-lapply(mult_pwp[,3:6],as.numeric)
 mult_pwp[,3:6]<-round (mult_pwp[,3:6],2)
-
 names(mult_pwp) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
+
+write_csv(mult_pwp,"data/bruto_frag.csv")
 
 
 
 # 7.Eventos múltiplos com fragilidade ---------------------------------------
 
-#Efeitos brutos
+#Efeitos de cada covariavel com fragilidade
 #Sexo
 frag_sexo <- coxph(Surv(ini, fim, status) ~ sexo + frailty(numcri,sparse = F, 
                   dist = "gamma"), data = diar)
@@ -289,21 +294,35 @@ frag_grupo <- coxph(Surv(ini, fim, status) ~ grupo + frailty(numcri,sparse = F,
                                                              dist = "gamma"), data = diar)
 summary(frag_grupo)
 
-#Tabela efeitos brutos - fragilidade para cada crianca
-bruto_frag <- rbind(
-  cbind(exp(frag_sexo$coefficients),exp(confint(frag_sexo)), frag_sexo$concordance[6]),
-  cbind(exp(frag_idade$coefficients),exp(confint(frag_idade)), frag_idade$concordance[6]),
-  cbind(exp(frag_grupo$coefficients),exp(confint(frag_grupo)), frag_grupo$concordance[6])
-)
-bruto_frag <- as.data.frame(bruto_pwp)
-bruto_frag <- round(bruto_pwp,2)
+#Tabela efeitos de cada variavel com fragilidade para cada crianca
+#nao sao efeitos brutos!
+
+res_frag_sexo <- 
+  cbind(
+  t(as.data.frame(summary(frag_sexo)$conf.int[1,c(1,3,4)])),
+  frag_sexo$concordance[6]
+  )
+
+res_frag_idade <- 
+  cbind(
+    t(as.data.frame(summary(frag_idade)$conf.int[1,c(1,3,4)])),
+    frag_idade$concordance[6]
+  )
+
+res_frag_grupo <- 
+  cbind(
+    t(as.data.frame(summary(frag_grupo)$conf.int[1,c(1,3,4)])),
+    frag_grupo$concordance[6]
+  )
+
+bruto_frag <- rbind(res_frag_sexo,res_frag_idade,res_frag_grupo)
+bruto_frag <- as.data.frame(bruto_frag)
+bruto_frag <- round(bruto_frag,2)
 bruto_frag <- cbind(c("Sexo (masculino)", "Idade", 
-                     "Tratamento (Vit.A)"), frag_pwp)
+                     "Tratamento (Vit.A)"), bruto_frag)
 names(bruto_frag) <- c("Variável","RR", "LI", "LS", "Concordância")
 
-
-
-
+write_csv(bruto_frag,"data/bruto_frag.csv")
 
 #Modelos múltiplos
 #Sexo + idade
@@ -312,7 +331,6 @@ frag_1 <- coxph(Surv(ini, fim, status) ~ sexo + idade
                   , data = diar)
 summary(frag_1)
 
-
 #Sexo + idade + grupo
 frag_2 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo
                 + frailty(numcri,sparse = T, dist = "gamma")
@@ -320,18 +338,67 @@ frag_2 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo
 summary(frag_2)
 #Concordance= 0.769
 
-#sexo + idade + grupo + gravidade
-frag_3 <- coxph(Surv(ini, fim, status) ~ grupo + idade + sexo + grav2
-                + frailty(numcri,sparse = T, dist = "gamma")
+frag_3 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo
+                + frailty(numcri,sparse = T)
                 , data = diar)
 summary(frag_3)
 
+#Tabela resumo dos modelos multiplos - efeitos fixos
+mult_frag <- rbind(
+  cbind("Modelo 5",c("Sexo (masculino)", "Idade"),exp(frag_1$coefficients),exp(confint(frag_1)), frag_1$concordance[6]),
+  cbind("Modelo 6",c("Sexo (masculino)", "Idade", 
+          "Tratamento (Vit.A)"),exp(frag_2$coefficients),exp(confint(frag_2)), frag_2$concordance[6]),
+  cbind("Modelo 7",c("Sexo (masculino)", "Idade", 
+          "Tratamento (Vit.A)"),exp(frag_3$coefficients),exp(confint(frag_3)), frag_3$concordance[6])
+)
+mult_frag <- as.data.frame(mult_frag)
+mult_frag[,3:6]<-lapply(mult_frag[,3:6],as.numeric)
+mult_frag[,3:6]<-round (mult_frag[,3:6],2)
+names(mult_frag) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
+
+write_csv(mult_frag,"data/mult_frag.csv")
+
+
+#histograma base das fragilidades
+par(mfrow = c(1, 2))
+hist(frag_2$frail, main = "Gamma", ylab = " ", xlab = " ")
+hist(frag_3$frail, main = "Gauss", ylab = " ", xlab = " ")
+dev.off()
+
+#histograma das fragilidades ggplot
+hist_gama <- ggplot(as.data.frame(frag_2$frail), aes(x = frag_2$frail)) +
+  geom_histogram(aes(y = ..density..), fill = "darkgrey") +
+  geom_vline(aes(xintercept = 0), color = "red", linewidth = 0.5) +
+  geom_density(color = "green", linewidth = 0.5)+
+  ylab ("Densidade") +
+  xlab("Fragilidade")+
+  ggtitle("Gama")+
+theme_classic()
+
+hist_gauss <-ggplot(as.data.frame(frag_3$frail), aes(x = frag_3$frail)) +
+  geom_histogram(aes(y = ..density..), fill = "darkgrey") +
+  geom_vline(aes(xintercept = 0), color = "red", linewidth = 0.5) +
+  geom_density(color = "green", linewidth = 0.5)+
+  ylab ("Densidade") +
+  xlab("Fragilidade")+
+  ggtitle("Gauss")+
+  theme_classic()
+
+plot_frag <- gridExtra::grid.arrange(hist_gama, hist_gauss,ncol=2)  
+ggsave("figure/hist_fragilidades.jpg",plot_frag, dpi = 300)
+
+  
 #tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
 #ao inves de usar a variancia robusta(cluster), usa a fragilidade
 #para tratar as medidas repetidas jogando efeitos aleatorios para cada crianca
 
 #nesse modelo é verificado o efeito protetor da suplementacao com vitamina A
 
+#não há diferenca de ajuste entre os modelos
+anova(frag_2,frag_3)
+#a likelihood ratio test can be carried out 
+#to formally explore whether the frailty models provide significantly 
+#better fits to the data. 
 
 # 8.Análise de resíduos ---------------------------------------------------
 
@@ -345,7 +412,6 @@ summary(frag_3)
 #ainda dimunuiu a concordancia do modelo
 #alem disso os grupos de comparacao estao equilibrados
 #com relacao a gravidade - tabela 1
-
 
 res.sho <- cox.zph(frag_2)
 

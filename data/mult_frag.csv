@@ -1,0 +1,9 @@
+Modelo,Variável,RR,LI,LS,Concordância
+Modelo 5,Sexo (masculino),1.04,0.91,1.19,0.77
+Modelo 5,Idade,0.97,0.96,0.97,0.77
+Modelo 6,Sexo (masculino),1.05,0.91,1.2,0.77
+Modelo 6,Idade,0.97,0.96,0.97,0.77
+Modelo 6,Tratamento (Vit.A),0.84,0.74,0.96,0.77
+Modelo 7,Sexo (masculino),1.04,0.91,1.18,0.77
+Modelo 7,Idade,0.96,0.96,0.97,0.77
+Modelo 7,Tratamento (Vit.A),0.84,0.74,0.96,0.77

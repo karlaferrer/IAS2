@@ -142,7 +142,7 @@ knitr::include_graphics("figure/sob_episodios.jpg", dpi = 300)
 ```
 
 Tabela 2: Características demográficas das crianças na linha de base e dos episódios de diarreia observados no tempo de seguimento segundo tratamento.
-```{r brutos, include=FALSE, message=FALSE, warning=FALSE}
+```{r brutos_pwp, include=FALSE, message=FALSE, warning=FALSE}
 #Eventos ordenados estruturados - PWP
 
 #Efeito bruto sexo
@@ -184,7 +184,27 @@ Tabela 2: Razão de riscos dos modelos univariados de Cox para eventos ordenados
 ```{r tabela2, include=TRUE, message=FALSE, warning=FALSE}
 
 bruto_pwp |> 
-  head() |>
+  regulartable() |>
+  autofit()
+  
+```
+
+
+Tabela 3: Estimativas dos efeitos ajustados de cada covariável sobre o risco de diarreia e intervalos de confiança a 95% segundo modelos de Cox para eventos ordenados estruturados (PWP). 
+```{r tabela3, include=TRUE, message=FALSE, warning=FALSE}
+tabela3 <- read_csv("data/mult_pwp.csv")
+tabela3 |> 
+  regulartable() |>
+  autofit()
+  
+```
+
+Tabela 4: Estimativas dos efeitos ajustados de cada covariável sobre o risco de diarreia e intervalos de confiança a 95% segundo modelos de Cox com fragilidades para as crianças. 
+
+```{r tabela4, include=TRUE, message=FALSE, warning=FALSE}
+tabela4 <- read_csv("data/mult_frag.csv")
+
+tabela4 |> 
   regulartable() |>
   autofit()
   
