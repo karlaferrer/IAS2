@@ -141,54 +141,15 @@ tabela1
 knitr::include_graphics("figure/sob_episodios.jpg", dpi = 300)
 ```
 
-Tabela 2: Características demográficas das crianças na linha de base e dos episódios de diarreia observados no tempo de seguimento segundo tratamento.
-```{r brutos_pwp, include=FALSE, message=FALSE, warning=FALSE}
-#Eventos ordenados estruturados - PWP
-
-#Efeito bruto sexo
-pwp_sexo <- coxph(Surv(ini, fim, status) ~ sexo + cluster(numcri) + strata(enum)
-                  ,data = diar)
-summary(pwp_sexo)
-#nao ha diferenca entre os sexos
-#Concordance= 0.5 
-
-#Efeito bruto idade
-pwp_idade <- coxph(Surv(ini, fim, status) ~ idade + cluster(numcri) + strata(enum)
-                   ,data = diar)
-summary(pwp_idade)
-#cada mes adicional diminui o risco em 1.6%
-#Concordance= 0.586
-
-#Efeito bruto tratamento
-pwp_grupo <- coxph(Surv(ini, fim, status) ~ grupo + cluster(numcri) + strata(enum)
-                  ,data = diar)
-summary(pwp_grupo)
-#nao ha diferenca entre os grupos
-#Concordance= 0.516
-
-#Tabela efeitos brutos pwp
-bruto_pwp <- rbind(
-  cbind(exp(pwp_sexo$coefficients),exp(confint(pwp_sexo)), pwp_sexo$concordance[6]),
-  cbind(exp(pwp_idade$coefficients),exp(confint(pwp_idade)), pwp_idade$concordance[6]),
-  cbind(exp(pwp_grupo$coefficients),exp(confint(pwp_grupo)), pwp_grupo$concordance[6])
-)
-bruto_pwp <- as.data.frame(bruto_pwp)
-bruto_pwp <- round(bruto_pwp,2)
-bruto_pwp <- cbind(c("Sexo (masculino)", "Idade", 
-                           "Tratamento (Vit.A)"), bruto_pwp)
-names(bruto_pwp) <- c("Variável","RR", "LI", "LS", "Concordância")
-
-```
 
 Tabela 2: Razão de riscos dos modelos univariados de Cox para eventos ordenados estruturados com intervalos de confiança a 95%.
 ```{r tabela2, include=TRUE, message=FALSE, warning=FALSE}
-
-bruto_pwp |> 
+tabela2 <- read_csv("data/bruto_pwp.csv")
+tabela2 |> 
   regulartable() |>
   autofit()
   
 ```
-
 
 Tabela 3: Estimativas dos efeitos ajustados de cada covariável sobre o risco de diarreia e intervalos de confiança a 95% segundo modelos de Cox para eventos ordenados estruturados (PWP). 
 ```{r tabela3, include=TRUE, message=FALSE, warning=FALSE}

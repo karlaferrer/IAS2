@@ -183,6 +183,7 @@ bruto_pwp <- cbind(c("Sexo (masculino)", "Idade",
                      "Tratamento (Vit.A)"), bruto_pwp)
 names(bruto_pwp) <- c("Variável","RR", "LI", "LS", "Concordância")
 
+write_csv(bruto_pwp,"data/bruto_pwp.csv")
 
 # 6.Efeito do tratamento ajustado PWP -----------------------------------------
 
@@ -195,7 +196,7 @@ summary(pwp_1)
 #Concordance= 0.585
 
 #Modelo 2: acrescenta o tratamento
-pwp_2 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + cluster(numcri) + strata(enum)
+pwp_2 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo + cluster(numcri) + strata(enum)
                ,data = diar)
 summary(pwp_2)
 #tratamento nao tem efeito significativo ajustado por idade e sexo
@@ -225,14 +226,14 @@ diar |>
   count(grav2)
 
 #efeito aleatorio gamma
-pwp_3 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + 
+pwp_3 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo + 
                  cluster(numcri) + strata(enum) + frailty(grav2, sparse = F)
                ,data = diar)
 summary(pwp_3)
 #Concordance= 0.627
 
 #efeito aleatorio lognormal
-pwp_4 <- coxph(Surv(ini, fim, status) ~ idade + sexo + grupo + 
+pwp_4 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo + 
                  cluster(numcri) + strata(enum) + 
                  frailty(grav2, sparse = F, dist = "gauss"),x = TRUE,
                ,data = diar)
@@ -272,7 +273,7 @@ mult_pwp[,3:6]<-lapply(mult_pwp[,3:6],as.numeric)
 mult_pwp[,3:6]<-round (mult_pwp[,3:6],2)
 names(mult_pwp) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
 
-write_csv(mult_pwp,"data/bruto_frag.csv")
+write_csv(mult_pwp,"data/mult_pwp.csv")
 
 
 
