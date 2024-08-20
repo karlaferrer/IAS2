@@ -279,52 +279,6 @@ write_csv(mult_pwp,"data/mult_pwp.csv")
 
 # 7.Eventos múltiplos com fragilidade ---------------------------------------
 
-#Efeitos de cada covariavel com fragilidade
-#Sexo
-frag_sexo <- coxph(Surv(ini, fim, status) ~ sexo + frailty(numcri,sparse = F, 
-                  dist = "gamma"), data = diar)
-summary(frag_sexo)
-
-#Idade
-frag_idade <- coxph(Surv(ini, fim, status) ~ idade + frailty(numcri,sparse = F, 
-                                                           dist = "gamma"), data = diar)
-summary(frag_idade)
-
-#Tratamento
-frag_grupo <- coxph(Surv(ini, fim, status) ~ grupo + frailty(numcri,sparse = F, 
-                                                             dist = "gamma"), data = diar)
-summary(frag_grupo)
-
-#Tabela efeitos de cada variavel com fragilidade para cada crianca
-#nao sao efeitos brutos!
-
-res_frag_sexo <- 
-  cbind(
-  t(as.data.frame(summary(frag_sexo)$conf.int[1,c(1,3,4)])),
-  frag_sexo$concordance[6]
-  )
-
-res_frag_idade <- 
-  cbind(
-    t(as.data.frame(summary(frag_idade)$conf.int[1,c(1,3,4)])),
-    frag_idade$concordance[6]
-  )
-
-res_frag_grupo <- 
-  cbind(
-    t(as.data.frame(summary(frag_grupo)$conf.int[1,c(1,3,4)])),
-    frag_grupo$concordance[6]
-  )
-
-bruto_frag <- rbind(res_frag_sexo,res_frag_idade,res_frag_grupo)
-bruto_frag <- as.data.frame(bruto_frag)
-bruto_frag <- round(bruto_frag,2)
-bruto_frag <- cbind(c("Sexo (masculino)", "Idade", 
-                     "Tratamento (Vit.A)"), bruto_frag)
-names(bruto_frag) <- c("Variável","RR", "LI", "LS", "Concordância")
-
-write_csv(bruto_frag,"data/bruto_frag.csv")
-
 #Modelos múltiplos
 #Sexo + idade
 frag_1 <- coxph(Surv(ini, fim, status) ~ sexo + idade
@@ -340,7 +294,7 @@ summary(frag_2)
 #Concordance= 0.769
 
 frag_3 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo
-                + frailty(numcri,sparse = T)
+                + frailty(numcri,sparse = T, dist = "gauss")
                 , data = diar)
 summary(frag_3)
 
@@ -362,7 +316,7 @@ write_csv(mult_frag,"data/mult_frag.csv")
 
 #histograma base das fragilidades
 par(mfrow = c(1, 2))
-hist(frag_2$frail, main = "Gamma", ylab = " ", xlab = " ")
+hist(frag_2$frail, main = "Gama", ylab = " ", xlab = " ")
 hist(frag_3$frail, main = "Gauss", ylab = " ", xlab = " ")
 dev.off()
 
@@ -388,8 +342,28 @@ hist_gauss <-ggplot(as.data.frame(frag_3$frail), aes(x = frag_3$frail)) +
 plot_frag <- gridExtra::grid.arrange(hist_gama, hist_gauss,ncol=2)  
 ggsave("figure/hist_fragilidades.jpg",plot_frag, dpi = 300)
 
-  
-#tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
+
+# multiple Density plot 
+
+gama <- data.frame(rep("Gama", times = length(frag_2$frail)),frag_2$frail)
+gauss <- data.frame(rep("Gauss", times = length(frag_3$frail)),frag_3$frail)  
+names(gama) <- c("Dist.", "Fragilidade")
+names (gauss) <- c("Dist.", "Fragilidade")
+frail <- rbind(gama, gauss)
+
+#density plot
+density_frail <- ggplot(frail, aes(x=Fragilidade ,fill = Dist.)) + 
+  # color property for changing color of plot
+  # geom_density() function plots the density plot
+  geom_density(alpha = 0.5, , color = "darkgrey",size = 0.3) +
+  geom_vline(aes(xintercept = 0), color = "red", linewidth = 0.3) +
+  scale_fill_manual(values = c("orange", "darkgreen"), name = " ") +
+  ylab("Densidade") +
+  xlab("Fragilidade") +
+  theme_classic()
+
+ggsave("figure/dens_fragilidades.jpg",density_frail, dpi = 300) 
+  #tem uma concordancia melhor que o pwp_2 e o pwp_3 e 4
 #ao inves de usar a variancia robusta(cluster), usa a fragilidade
 #para tratar as medidas repetidas jogando efeitos aleatorios para cada crianca
 
@@ -420,10 +394,10 @@ covar <- c("Beta (t) para Idade","Beta (t) para Sexo",
            "Beta (t) para Tratamento")
 
 jpeg(file = "figure/Shoenfeld%2d.jpg")
-for (k in 1:length(pwp_2$coefficients)){
+for (k in 1:length(frag_2$coefficients)){
   plot(res.sho[k], xlab = "Meses", col= c("red", "blue"), ylab = covar[k], 
        resid = TRUE, se= TRUE, lwd = 2)
-  abline(h=pwp_2$coefficients[k], lty=4, col=2, lwd = 2)
+  abline(h=frag_2$coefficients[k], lty=4, col=2, lwd = 2)
 }
 dev.off()
 
@@ -475,7 +449,7 @@ ggcoxdiagnostics(frag_2, type = "deviance",
 # 9.Gráfico dos efeitos fixos e aleatorios  ----------------------------------------------------
 
 #Efeitos fixos do modelo
-exp_coef<-exp(frag_2$coefficients)
+exp_coef<-(frag_2$coefficients)
 d_forest <- exp(confint(frag_2))
 d_forest <- round(d_forest[-4,],2)
 dat <- data.frame(
@@ -487,7 +461,8 @@ dat <- data.frame(
 )
 
 ## Plot forest plot
-ggplot(dat, aes(y = Index, x = HR)) +
+
+forest <- ggplot(dat, aes(y = Index, x = HR)) +
   geom_point(shape = 18, size = 2) +  
   geom_errorbarh(aes(xmin = LL, xmax = UL), height = 0.10) +
   geom_vline(xintercept = 1, color = "blue", linetype = "dashed", cex = 0.5) +
@@ -504,6 +479,7 @@ ggplot(dat, aes(y = Index, x = HR)) +
         axis.text.x.bottom = element_text(size = 10, colour = "black"),
         axis.title.x = element_text(size = 10, colour = "black"))
 
+ggsave("figure/forest_fix.jpg",forest, dpi = 300)
 
 #Grafico dos efeitos aleatorios
 #source("Rfun.r")
@@ -550,12 +526,12 @@ index <- 1:length(ordenado$unidade)
 ordenado <- cbind(ordenado, index)
 
 #com ggplot dem 10 grupos para poder visualizar cada criança
-ggplot(ordenado[1:10,], aes(y = index, x = fragil)) +
+ggplot(ordenado, aes(y = index, x = fragil)) +
   geom_point(shape = 18, size = 1.0) +  
   geom_errorbarh(aes(xmin = inf, xmax = sup), height = 0.08) +
   geom_vline(xintercept = 0, color = "blue", linetype = "dashed", cex = 0.5) +
-  scale_y_continuous(name = " ", breaks=1:10, labels = ordenado$unidade[1:10]) +
-  xlab("Fraglidade") + 
+  scale_y_continuous(name = " ", breaks=1:length(ordenado$unidade), labels = ordenado$unidade) +
+  xlab("Fragilidade") + 
   #ylab("Criança") + 
   theme_bw() +
   theme(panel.border = element_blank(),
