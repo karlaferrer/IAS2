@@ -378,15 +378,7 @@ anova(frag_2,frag_3)
 # 8.Análise de resíduos ---------------------------------------------------
 
 #Proporcionalidade - Shoenfeld
-
-# nao funciona acessar os residuos dos modelos pwp 3 e 4
-#sugestao: ficar com o modelo pwp_2, sem fragilidade
-# a variancia dos efeitos aleatorios e pequena
-#a inclusao nao diminuiu o erro padrao dos outros coeficientes
-#nao ajuda muito a explicar a variabilidade
-#ainda dimunuiu a concordancia do modelo
-#alem disso os grupos de comparacao estao equilibrados
-#com relacao a gravidade - tabela 1
+#modelo 6 - fragilidade (criancas) gama - frag_2
 
 res.sho <- cox.zph(frag_2)
 
@@ -395,11 +387,49 @@ covar <- c("Beta (t) para Idade","Beta (t) para Sexo",
 
 jpeg(file = "figure/Shoenfeld%2d.jpg")
 for (k in 1:length(frag_2$coefficients)){
-  plot(res.sho[k], xlab = "Meses", col= c("red", "blue"), ylab = covar[k], 
+ plot(res.sho[k], xlab = "Tempo", col= c("red", "blue"), 
        resid = TRUE, se= TRUE, lwd = 2)
   abline(h=frag_2$coefficients[k], lty=4, col=2, lwd = 2)
 }
 dev.off()
+
+#Ajustar escalas
+
+jpeg(file = "figure/Shoenfeld_facet.jpg", width = 15, 
+     height = 18, units = "cm", res = 300)
+par(mfrow = c(2,2))
+#sexo
+plot(res.sho[1], xlab = "Tempo", col= c("red", "blue"), 
+     resid = TRUE, se= TRUE, lwd = 2,
+     ylab = "Beta (t) para sexo", main = "Sexo")
+abline(h=frag_2$coefficients[1], lty=2, col=2, lwd = 2)
+#idade
+plot(res.sho[2], xlab = "Tempo", col= c("red", "blue"), 
+     resid = TRUE, se= TRUE, lwd = 2, ylim = c(-0.06,0.06),
+     ylab = "Beta (t) para idade", main = "Idade")
+abline(h=frag_2$coefficients[2], lty=2, col=2, lwd = 2)
+#grupo
+plot(res.sho[3], xlab = "Tempo", col= c("red", "blue"), 
+     resid = TRUE, se= TRUE, lwd = 2,
+     ylab = "Beta (t) para tratamento", main = "Tratamento")
+abline(h=frag_2$coefficients[3], lty=2, col=2, lwd = 2)
+dev.off()
+
+#resultados dos testes
+res.sho$table
+#Rejeita a proporcionalidade dos riscos ao longo do tempo para as tres
+#variaveis do modelo
+#no grafico, os efeitos de grupo de tratamento e sexo parecem mudar no fim
+#do periodo 
+# mas o intervalo contem a reta do coeficiente beta
+# no grupo de tratamento ha uma discreta inclinacao indicando 
+#diminuicao do efeito protetor ao longo do tempo
+#aparentemente, o efeito da idade se modifica ao longo do tempo
+#pq as criancas sao seguidas por um ano, faz sentido,
+#cada mes adicionado muda o risco, mas podemos considerar que
+# o intervalo contem a reta do beta, em alguns pontos tocando no
+#limite inferior.
+
 
 #outra opcao grafica
 ggcoxzph(res.sho, font.x = 10, font.y=10)
@@ -419,12 +449,16 @@ lines(lowess(diar$idade, mod0.mar, iter = 0), lty = 2)
 
 #outra forma
                        
-ggcoxfunctional(Surv(ini, fim, status) ~ idade, data = diar,
+mart <- ggcoxfunctional(Surv(ini, fim, status) ~ idade, data = diar,
                 ggtheme = theme_minimal(),
                 ylab = "Resíduos Martingale - modelo nulo",
                 xlab = "Idade (meses)", 
                 ylim=c(-5,1)
 )
+
+library(gridExtra)
+ggsave("figure/martingale.jpg", arrangeGrob(grobs = mart), dpi = 300)
+
 # a forma funcional esta adequada
 
 
@@ -437,7 +471,7 @@ abline(h=0, col="red")
 (sum(res.dev  > 2) + sum(res.dev  < (-2)))/length(diar$numcri)
 
 #outra forma
-ggcoxdiagnostics(frag_2, type = "deviance",
+devian <- ggcoxdiagnostics(frag_2, type = "deviance",
                  linear.predictions = FALSE, sline = FALSE, 
                  ggtheme = theme_minimal(),
                  ylab = "Resíduos deviance",
@@ -445,6 +479,30 @@ ggcoxdiagnostics(frag_2, type = "deviance",
                  main = " "
 )
 
+ggsave("figure/deviance.jpg", devian, dpi = 300)
+
+#Residuos escore - pontos influentes
+
+res.esc <- resid(frag_2, type= 'dfbetas')
+
+jpeg(file="figure/escore.jpg", width = 15, height = 20, units = "cm", pointsize = 12,
+     res = 600, quality = 85)
+par(mfrow = c(2,2))
+plot (factor(diar$sexo) , res.esc[,1],xlab = "Sexo", ylab = "Resíduos escore", col = 0)
+plot (diar$idade , res.esc[,2],xlab = "Idade (década)", ylab = "Resíduos escore")
+plot (factor(diar$grupo) , res.esc[,3],xlab = "Tratamento", ylab = "Resíduos escore",col = 0)
+dev.off()
+
+#outra forma
+escore <- ggcoxdiagnostics(frag_2, type = "dfbetas",
+                   linear.predictions = FALSE,
+                   sline = FALSE,
+                   ylab = "Resíduos dfbetas",
+                  xlab = "Índice",
+                  ggtheme = theme_minimal())
+
+
+ggsave("figure/escore.jpg", escore, dpi = 300)
 
 # 9.Gráfico dos efeitos fixos e aleatorios  ----------------------------------------------------
 
@@ -454,7 +512,7 @@ d_forest <- exp(confint(frag_2))
 d_forest <- round(d_forest[-4,],2)
 dat <- data.frame(
   Index = c(1:3), ## This provides an order to the data
-  label = c("Sexo (M)","Idade", "Vitamina A"),
+  label = c("Sexo (M)","Idade", "Grupo (Vit. A)"),
   HR = exp(frag_2$coefficients),
   LL = exp(confint(frag_2))[,1],
   UL = exp(confint(frag_2))[,2]
@@ -463,7 +521,7 @@ dat <- data.frame(
 ## Plot forest plot
 
 forest <- ggplot(dat, aes(y = Index, x = HR)) +
-  geom_point(shape = 18, size = 2) +  
+  geom_point(shape = 18, size = 4) +  
   geom_errorbarh(aes(xmin = LL, xmax = UL), height = 0.10) +
   geom_vline(xintercept = 1, color = "blue", linetype = "dashed", cex = 0.5) +
   scale_y_continuous(name = "", breaks=1:3, labels = dat$label, trans = "reverse") +
@@ -512,14 +570,19 @@ fragil <- data.frame(unidade=unique(diar$numcri),fragil=frag_2$frail,inf=(frag_2
 ordenado <- fragil[order(fragil[,2]),]                     
 x<-matrix(1:nrow(fragil),ncol=nrow(fragil),nrow=2,byrow=T) 
 y<-t(ordenado[,3:4])   
-matplot(x,y,type='l',col=1,lty=1,axes=F)               
+
+jpeg(file = "figure/random_effect.jpg")
+matplot(x,y,type='l',col=1,lty=1,axes=F, xlab = "Criança",
+        ylab = "Fragilidade")               
 box();axis(2); axis(1,at=x[1,],labels=ordenado$unidade,las=2)
 matpoints(x[1,],y[1,],pch=24,col=1)                        
 matpoints(x[2,],y[2,],pch=25,col=1)                        
 points(1:ncol(x),ordenado[,2],pch=19, cex=0.1)                      
-abline(h=0)
+abline(h=0, col="red")
+dev.off()
 
 
+#com ggplot
 grupos <- as.factor(rep(1:10, each = 86))
 ordenado <- cbind(ordenado, grupos)
 index <- 1:length(ordenado$unidade)
