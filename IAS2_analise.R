@@ -235,8 +235,8 @@ summary(pwp_3)
 #efeito aleatorio lognormal
 pwp_4 <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo + 
                  cluster(numcri) + strata(enum) + 
-                 frailty(grav2, sparse = F, dist = "gauss"),x = TRUE,
-               ,data = diar)
+                 frailty(grav2, sparse = F, dist = "gauss"),
+                 data = diar)
 summary(pwp_4)
 
 #a variancia do efeito alatorio é pequena, mas significativa a 5%
@@ -485,7 +485,7 @@ ggsave("figure/deviance.jpg", devian, dpi = 300)
 
 res.esc <- resid(frag_2, type= 'dfbetas')
 
-jpeg(file="figure/escore.jpg", width = 15, height = 20, units = "cm", pointsize = 12,
+jpeg(file="figure/escore_1.jpg", width = 15, height = 20, units = "cm", pointsize = 12,
      res = 600, quality = 85)
 par(mfrow = c(2,2))
 plot (factor(diar$sexo) , res.esc[,1],xlab = "Sexo", ylab = "Resíduos escore", col = 0)
@@ -572,12 +572,12 @@ x<-matrix(1:nrow(fragil),ncol=nrow(fragil),nrow=2,byrow=T)
 y<-t(ordenado[,3:4])   
 
 jpeg(file = "figure/random_effect.jpg")
-matplot(x,y,type='l',col=1,lty=1,axes=F, xlab = "Criança",
+matplot(x,y,type='l',col= 1,lty=1,axes=F, xlab = "Criança",
         ylab = "Fragilidade")               
 box();axis(2); axis(1,at=x[1,],labels=ordenado$unidade,las=2)
 matpoints(x[1,],y[1,],pch=24,col=1)                        
 matpoints(x[2,],y[2,],pch=25,col=1)                        
-points(1:ncol(x),ordenado[,2],pch=19, cex=0.1)                      
+points(1:ncol(x),ordenado[,2],pch=19, cex=0.1, col = "green")                      
 abline(h=0, col="red")
 dev.off()
 
@@ -608,3 +608,16 @@ ggplot(ordenado, aes(y = index, x = fragil)) +
         axis.title.y = element_text(size = 8, colour = "black"))
 
 
+# 10. Sugestão Raquel  ----------------------------------------------------
+
+#colocar o numcri como fragilidade ao invés de cluster (dois frailty)
+
+#efeito aleatorio gamma
+two_frailty <- coxph(Surv(ini, fim, status) ~ sexo + idade + grupo + 
+                 #strata(enum) + #ricos basais diferentes
+                 frailty(grav2, sparse = F, dist = "gamma") +
+                 frailty(numcri, sparse = F, dist = "gamma"),  
+                 data = diar)
+summary(two_frailty)
+
+                   

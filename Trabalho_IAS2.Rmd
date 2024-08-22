@@ -170,6 +170,16 @@ tabela4 |>
   autofit()
   
 ```
+Dessa forma, a equação abaixo representa o modelo selecionado em nossa análise:
 
+$$
+\lambda(t|x)=\lambda_{0}(t)exp(x\beta + w)
+$$
+
+onde $$
+\beta = (0.04,-0.03,-0.17),
+$$ é o vetor dos coeficientes do modelo para as covariáveis $x$*= (sexo masculino, idade e grupo de tratamento vitamina A)*, nesta ordem e $\omega$ é um vetor que contém 860 fragilidades relativas a cada criança, cujos valores pontuais e intervalos de confiança a 95% são representados na Figura 8.
+
+Esse modelo teve a probabilidade de concordância reduzida em relação ao Modelo 6 (Concordância = 0,77). 
 
 **Referências**
