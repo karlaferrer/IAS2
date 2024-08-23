@@ -37,6 +37,8 @@ pacman::p_load(
 knitr::write_bib(c(.packages(), "survival", "finalfit", "survminer", "ggsurvfit"), "ref/pacotes.bib")
 ```
 
+**Introdução**
+
 **Métodos**
 
 Os dados analisados neste trabalho são provenientes de um estudo brasileiro publicado na Revista The Lancet em 1994 intitulado "*Effect of vitamin A supplementation on diarrhoea and acute lower-respiratory-tract infections in young children in Brazil*" [@barreto1994]. O objetivo dos autores foi investigar o efeito da suplementação de vitamina A sobre a diarreia e infecções respiratórias agudas do trato inferior, em um ensaio clínico comunitário placebo-controlado com uma coorte de crianças de 6 a 48 meses acompanhadas por um ano [@barreto1994; @carvalho_alise_2011].
@@ -142,18 +144,9 @@ knitr::include_graphics("figure/sob_episodios.jpg", dpi = 300)
 ```
 
 
-Tabela 2: Razão de riscos dos modelos univariados de Cox para eventos ordenados estruturados com intervalos de confiança a 95%.
+Tabela 2: Estimativas dos efeitos brutos e ajustados de cada covariável sobre o risco de diarreia e intervalos de confiança a 95% segundo modelos de Cox para eventos ordenados estruturados (PWP). 
 ```{r tabela2, include=TRUE, message=FALSE, warning=FALSE}
-tabela2 <- read_csv("data/bruto_pwp.csv")
-tabela2 |> 
-  regulartable() |>
-  autofit()
-  
-```
-
-Tabela 3: Estimativas dos efeitos ajustados de cada covariável sobre o risco de diarreia e intervalos de confiança a 95% segundo modelos de Cox para eventos ordenados estruturados (PWP). 
-```{r tabela3, include=TRUE, message=FALSE, warning=FALSE}
-tabela3 <- read_csv("data/mult_pwp.csv")
+tabela3 <- read_csv("data/pwp_models.csv")
 tabela3 |> 
   regulartable() |>
   autofit()

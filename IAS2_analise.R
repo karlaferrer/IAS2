@@ -173,15 +173,18 @@ summary(pwp_grupo)
 
 #Tabela efeitos brutos pwp
 bruto_pwp <- rbind(
-  cbind(exp(pwp_sexo$coefficients),exp(confint(pwp_sexo)), pwp_sexo$concordance[6]),
-  cbind(exp(pwp_idade$coefficients),exp(confint(pwp_idade)), pwp_idade$concordance[6]),
-  cbind(exp(pwp_grupo$coefficients),exp(confint(pwp_grupo)), pwp_grupo$concordance[6])
+  cbind("Modelo 1",exp(pwp_sexo$coefficients),exp(confint(pwp_sexo)), pwp_sexo$concordance[6]),
+  cbind("Modelo 2",exp(pwp_idade$coefficients),exp(confint(pwp_idade)), pwp_idade$concordance[6]),
+  cbind("Modelo 3",exp(pwp_grupo$coefficients),exp(confint(pwp_grupo)), pwp_grupo$concordance[6])
 )
 bruto_pwp <- as.data.frame(bruto_pwp)
-bruto_pwp <- round(bruto_pwp,2)
+bruto_pwp[,2:5]<-lapply(bruto_pwp[,2:5],as.numeric)
+bruto_pwp[,2:5] <- round(bruto_pwp[,2:5],2)
 bruto_pwp <- cbind(c("Sexo (masculino)", "Idade", 
                      "Tratamento (Vit.A)"), bruto_pwp)
-names(bruto_pwp) <- c("Variável","RR", "LI", "LS", "Concordância")
+
+bruto_pwp <- bruto_pwp[,c(2,1,3:6)]
+names(bruto_pwp) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
 
 write_csv(bruto_pwp,"data/bruto_pwp.csv")
 
@@ -245,28 +248,20 @@ summary(pwp_4)
 #Plot das fragilidades estimadas
 #Necessita do sparse = T, que nao esta funcionando
 
+#os modelos pw3 e pw4 não são adequados 
+
 #Tabela comparando modelos
 
-res_pwp_1 <- cbind("Modelo 1",
+res_pwp_1 <- cbind("Modelo 4",
   c("Sexo (masculino)","Idade"),exp(pwp_1$coefficients),
                    exp(confint(pwp_1)), pwp_1$concordance[6])
 
-res_pwp_2 <- cbind("Modelo 2",
+res_pwp_2 <- cbind("Modelo 5",
   c("Sexo (masculino)","Idade", "Tratamento (Vit. A)"),
                    exp(pwp_2$coefficients),exp(confint(pwp_2)), pwp_2$concordance[6])
   
 
-res_pwp_3 <-cbind("Modelo 3",
-  c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
-                    "Primeiro episódio", "Sem evento"),
-                  exp(pwp_3$coefficients),exp(confint(pwp_3)), pwp_3$concordance[6])
-
-res_pwp_4 <-cbind("Modelo 4",
-  c("Sexo (masculino)","Idade", "Tratamento (Vit. A)", "Grave", "Leve", "Moderado",
-                    "Primeiro episódio", "Sem evento"),
-                  exp(pwp_4$coefficients),exp(confint(pwp_4)), pwp_4$concordance[6])
-
-mult_pwp<- rbind(res_pwp_1, res_pwp_2, res_pwp_3,res_pwp_4)
+mult_pwp<- rbind(res_pwp_1, res_pwp_2)
 
 mult_pwp <- as.data.frame(mult_pwp)
 mult_pwp[,3:6]<-lapply(mult_pwp[,3:6],as.numeric)
@@ -275,7 +270,10 @@ names(mult_pwp) <- c("Modelo","Variável","RR", "LI", "LS", "Concordância")
 
 write_csv(mult_pwp,"data/mult_pwp.csv")
 
+#juntar com modelos simples numa tabela
+pwp_models <- rbind(bruto_pwp,mult_pwp)
 
+write_csv(pwp_models,"data/pwp_models.csv")
 
 # 7.Eventos múltiplos com fragilidade ---------------------------------------
 
@@ -300,10 +298,10 @@ summary(frag_3)
 
 #Tabela resumo dos modelos multiplos - efeitos fixos
 mult_frag <- rbind(
-  cbind("Modelo 5",c("Sexo (masculino)", "Idade"),exp(frag_1$coefficients),exp(confint(frag_1)), frag_1$concordance[6]),
-  cbind("Modelo 6",c("Sexo (masculino)", "Idade", 
-          "Tratamento (Vit.A)"),exp(frag_2$coefficients),exp(confint(frag_2)), frag_2$concordance[6]),
+  cbind("Modelo 6",c("Sexo (masculino)", "Idade"),exp(frag_1$coefficients),exp(confint(frag_1)), frag_1$concordance[6]),
   cbind("Modelo 7",c("Sexo (masculino)", "Idade", 
+          "Tratamento (Vit.A)"),exp(frag_2$coefficients),exp(confint(frag_2)), frag_2$concordance[6]),
+  cbind("Modelo 8",c("Sexo (masculino)", "Idade", 
           "Tratamento (Vit.A)"),exp(frag_3$coefficients),exp(confint(frag_3)), frag_3$concordance[6])
 )
 mult_frag <- as.data.frame(mult_frag)
